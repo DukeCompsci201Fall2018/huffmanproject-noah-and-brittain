@@ -1,3 +1,4 @@
+import java.util.PriorityQueue;
 
 /**
  * Although this class has a history of several years,
@@ -59,12 +60,76 @@ public class HuffProcessor {
 	 *            Buffered bit stream writing to the output file.
 	 */
 	public void decompress(BitInputStream in, BitOutputStream out){
-
-		while (true){
-			int val = in.readBits(BITS_PER_WORD);
-			if (val == -1) break;
-			out.writeBits(BITS_PER_WORD, val);
+		int decom = in.readBits(BITS_PER_INT);
+		if (decom != HUFF_TREE) {
+			throw new HuffException("No magic? What!");
 		}
-		out.close();
+		HuffNode root = readTreeHeader(in);
+		readCompressedBits(root, in, out);
 	}
+	
+
+	
+	
+	private HuffNode readTreeHeader(BitInputStream in) {
+		//pre-order traversal of the Tree and then returns it
+		int bit = in.readBits(1);
+		
+		if (bit == -1) {
+			throw new HuffException("Nothing Was Read");
+		}
+		
+		if (bit == 0){
+		    HuffNode left = readTreeHeader(in);
+		    HuffNode right = readTreeHeader(in);
+		    HuffNode internal = new HuffNode(-1, 0, left, right); 
+		    return internal;
+		}
+		
+		HuffNode leaf = new HuffNode(in.readBits(BITS_PER_WORD + 1), 0);
+		return leaf;
+	}
+	
+	/*
+	 * Reads the BitInputStream and uses these bits to traverse the tree.
+	 * 0 = left. 1 = right.
+	 * Once you reach a leaf, write out the value stored within it to BitOutputStream.
+	 */
+	private void readCompressedBits(HuffNode root, BitInputStream in, BitOutputStream out) {
+		if (root == null) return;
+		HuffNode curr = root;
+		while (true) {
+			
+			if (curr.value() != -1) {
+				if (curr.value() == PSEUDO_EOF) {
+					break;
+				}
+				out.writeBits(BITS_PER_WORD, curr.value());
+				curr = root;
+			}
+			int bit = in.readBits(1);
+			
+			if (bit == -1) {
+				throw new HuffException("invalid bit");
+			}
+			if (bit == 0) {
+				curr = curr.left();
+			}
+			else if (bit == 1) {
+				curr = curr.right();
+			}
+			//throw huffException if the PSEUDO_EOF is never reached
+			if (curr == null) {
+				throw new HuffException("PSEUDO_EOF never reached");
+			}
+			
+		}
+	}
+
+	public void setHeader(Header header) {
+        myHeader = header;
+        System.out.println("header set to "+myHeader);
+    }
 }
+	
+	
