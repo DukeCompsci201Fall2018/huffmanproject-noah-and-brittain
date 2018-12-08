@@ -60,19 +60,19 @@ public class HuffProcessor {
 	 *            Buffered bit stream writing to the output file.
 	 */
 	public void decompress(BitInputStream in, BitOutputStream out){
-		int decom = in.readBits(BITS_PER_INT);
-		if (decom != HUFF_TREE) {
-			throw new HuffException("No magic? What!");
+		int bits = in.readBits(BITS_PER_INT);
+		if (bits != HUFF_TREE) {
+			throw new HuffException("illegal header starts with " + bits);
 		}
 		HuffNode root = readTreeHeader(in);
 		readCompressedBits(root, in, out);
+		out.close();
 	}
 	
 
 	
 	
 	private HuffNode readTreeHeader(BitInputStream in) {
-		//pre-order traversal of the Tree and then returns it
 		int bit = in.readBits(1);
 		
 		if (bit == -1) {
@@ -99,26 +99,23 @@ public class HuffProcessor {
 		if (root == null) return;
 		HuffNode curr = root;
 		while (true) {
-			
-			if (curr.value() != -1) {
-				if (curr.value() == PSEUDO_EOF) {
+			if (curr.myValue != -1) {
+				if (curr.myValue == PSEUDO_EOF) {
 					break;
 				}
-				out.writeBits(BITS_PER_WORD, curr.value());
+				out.writeBits(BITS_PER_WORD, curr.myValue);
 				curr = root;
 			}
 			int bit = in.readBits(1);
-			
 			if (bit == -1) {
 				throw new HuffException("invalid bit");
 			}
-			if (bit == 0) {
-				curr = curr.left();
+			else if (bit == 0) {
+				curr = curr.myLeft;
 			}
 			else if (bit == 1) {
-				curr = curr.right();
+				curr = curr.myRight;
 			}
-			//throw huffException if the PSEUDO_EOF is never reached
 			if (curr == null) {
 				throw new HuffException("PSEUDO_EOF never reached");
 			}
@@ -126,10 +123,7 @@ public class HuffProcessor {
 		}
 	}
 
-	public void setHeader(Header header) {
-        myHeader = header;
-        System.out.println("header set to "+myHeader);
-    }
+    
 }
 	
 	
